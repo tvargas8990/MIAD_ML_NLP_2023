@@ -9,30 +9,46 @@ import os
 def predict_price(pYear, pMileage, pState, pMake, pModel):
     # Importamos el modelo creado para predecir el precio de los carros 
     rf = joblib.load(os.path.dirname(__file__) + '/CarPricing_rf.pkl') 
-
-    # Ahora, debemos hacer las transformaciones que hicimos para las variables categoricas 
-    # Recordemos que para este modelo solo debemos usar las dummies que un RF inicial nos indico eran las mas relevantes 
-    important_features = ['Year','Mileage','Model_Silverado','Model_Super','Make_GMC','Make_Lexus','Model_F-1504WD','Model_Wrangler','Model_Tahoe4WD','Make_BMW','Model_Escalade','Model_Suburban4WD','Make_Mercedes-Benz','Model_Rover','Make_Land','Make_Kia','Make_Ram','Model_Suburban2WD','Model_Tundra','Model_Tahoe2WD','Model_TahoeLT','Model_Sierra','Model_FusionSE','Make_Volkswagen','Model_TerrainFWD','Model_FocusSE','Model_CorvetteCoupe','Make_Porsche','Make_Hyundai','Model_Grand','Model_CruzeSedan','Make_Ford']
-
-    # Inicializamos los valores en 0 
-    lista_ceros = [0] * len(important_features)
-    # Crear un diccionario con los nombres de columnas y los valores cero correspondientes
-    zeros_dict = dict(zip(important_features, lista_ceros))
-
-    # Crear un DataFrame de una fila con nombres de columna y valores cero
-    df = pd.DataFrame([zeros_dict])
-
+    # Debemos traer los promedios que construimos para asignarelos al modelo 
+    working_directory = os.getcwd()
+    print(working_directory)
+    pathMaker = working_directory + '/maker_response_freq.csv'
+    pathModel = working_directory + '/model_response_freq.csv'
+    pathState = working_directory + '/state_response_freq.csv'
+    dataMaker = pd.read_csv(pathMaker)
+    dataModel = pd.read_csv(pathModel)
+    dataState = pd.read_csv(pathState)
+    
     # Vamos reemplazando los valores segun los valores ingresados por el usuario
-    df['Year'] = pYear
-    df['Mileage'] = pMileage
-    df = df.apply(lambda col: col.apply(lambda x: 1 if pMake in col.name else x))
-    df = df.apply(lambda col: col.apply(lambda x: 1 if pModel in col.name else x))
-    # El modelo no usa los estados, por lo cual nos los vamos a tener en cuenta 
-    # En este punto ya tenemos un dataframe con los valores que necesita el modelo 
-    # Hacemos la prediccion y devolvemos el precio
-    price = rf.predict(df)
+    #df['Year'] = pYear
+    #df['Mileage'] = pMileage
+    # Obtenemos el promedio del State
+    respState = -1
+    # El estado debe tener un espacio al inicio para que funcione con el csv
+    if not pState.startswith(" "):
+        pState = " " + pState
+    for s in range(0, len(dataState)):
+        if dataState.loc[s]['State'] == pState:
+            respState = dataState.loc[s]['Price']
+    
+    # Obtenemos el promedio del Maker
+    respMaker = -1
+    for m in range(0, len(dataMaker)):
+        if dataMaker.loc[m]['Make'] == pMake:
+            respMaker = dataMaker.loc[m]['Price']
 
-    return price[0]
+    # Obtenemos el promedio del Modelo
+    respModel = -1
+    for l in range(0, len(dataModel)):
+        if dataModel.loc[l]['Model'] == pModel:
+            respModel = dataModel.loc[l]['Price']
+
+    data = {'Year':[pYear], 'Mileage':[pMileage], 'State':[respState], 'Make':[respMaker], 'Model':[respModel]}
+    df = pd.DataFrame(data)
+
+    y_pred = rf.predict(df)
+    return y_pred[0]
+    
 
 if __name__ == "__main__":
     
